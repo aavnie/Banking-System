@@ -4,7 +4,6 @@
 #include <string.h>
 #include <sqlite3.h>
 #include <crypt.h>
-#include <unistd.h>
 
 sqlite3 *setupDB();
 char *password_hashing(const char *password);
@@ -25,7 +24,8 @@ void register_account(char *fName, char *lName, char *username, char *phone_numb
                 "username TEXT   NOT NULL, " 
                 "phone_number TEXT   NOT NULL, " 
                 "email TEXT   NOT NULL, " 
-                "password TEXT   NOT NULL);";
+                "password TEXT   NOT NULL,"
+                "balance REAL DEFAULT 0.0   NOT NULL);";
 
     char *err_msg = 0;
     int rc = sqlite3_exec(db, sql, 0, 0, &err_msg);
@@ -44,7 +44,7 @@ void register_account(char *fName, char *lName, char *username, char *phone_numb
     sqlite3_stmt *stmt;
     rc = sqlite3_prepare_v2(db, sql_insert, -1, &stmt, 0);
     if(rc != SQLITE_OK){
-        fprintf(stderr, "Failed to prepare statement\n");
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
         sqlite3_close(db);
         free(hashed_password);
         return;
@@ -65,6 +65,7 @@ void register_account(char *fName, char *lName, char *username, char *phone_numb
     }
     else{
         printf("Account created successfully!\n");
+        printf("Go to login page to login into your account!\n");
     }
 
     // Cleanup and close database connection

@@ -1,18 +1,21 @@
-#include <stdio.h>
 #include "utils/account_utils.h"
+#include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
+#include <sqlite3.h>
 
 #define MIN_USERNAME_LENGTH 4 // minimum username length
 #define MAX_USERNAME_LENGTH 33 // max username length
 #define MIN_PASSWORD_LENGTH 8 //min password length
 #define MAX_PASSWORD_LENGTH 65 // max password length
 
-int user_choice();
+int main_menu();
+void client_portal_menu(const char* username);
 
 typedef struct
 {
-    char account[64];
+    char username[64];
     char password[64];
 
 }Account_Login;
@@ -48,99 +51,112 @@ int main(){
 
     while(1){
 
-        choice = user_choice();
+        choice = main_menu();
 
-        if(choice == 4){
+        if(choice == 3){
             printf("Exiting the program. Goodbye!\n");
             break;
         }
-        if(choice < 1 || choice > 4 || choice == '\n'){
+        if(choice < 1 || choice > 3 || choice == '\n'){
             printf("Invalid choice! Please try again.\n");
             continue;
         }
         
-        while(1){
-            switch (choice)
+        switch (choice)
+        {
+        case 1:
+            do
             {
-            case 1:
+                
+                // Create Account and take user input for the user details
+                printf("Welcome to the registration page!\n\n");
+
+                Account_Registration new_account;
+                getchar();
                 do
                 {
-                    
-                    // Create Account and take user input for the user details
-                    printf("Welcome to the registration page!\n\n");
+                    printf("Enter your First Name: ");
+                    fgets(new_account.fName, sizeof(new_account.fName), stdin);
+                    new_account.fName[strcspn(new_account.fName, "\n")] = '\0'; // Removes the new line character, same for all the ones below
+                } while (strlen(new_account.fName) <= 2);
+                
+                
+                do{
+                    printf("Enter your Last Name: ");                        
+                    fgets(new_account.lName, sizeof(new_account.lName), stdin);
+                    new_account.lName[strcspn(new_account.lName, "\n")] = '\0'; 
+                }while (strlen(new_account.lName) <= 2);
 
-                    Account_Registration new_account;
-                    getchar();
-                    do
-                    {
-                        printf("Enter your First Name: ");
-                        fgets(new_account.fName, sizeof(new_account.fName), stdin);
-                        new_account.fName[strcspn(new_account.fName, "\n")] = '\0'; // Removes the new line character, same for all the ones below
-                    } while (strlen(new_account.fName) == 0);
-                    
-                    
-                    do{
-                        printf("Enter your Last Name: ");                        
-                        fgets(new_account.lName, sizeof(new_account.lName), stdin);
-                        new_account.lName[strcspn(new_account.lName, "\n")] = '\0'; 
-                    }while (strlen(new_account.lName) == 0);
+                do
+                {
+                    printf("Enter your Username: ");
+                    fgets(new_account.username, sizeof(new_account.username), stdin);
+                    new_account.username[strcspn(new_account.username, "\n")] = '\0'; 
+                } while (strlen(new_account.username) == 0 || strlen(new_account.username) < MIN_USERNAME_LENGTH || strlen(new_account.username) > MAX_USERNAME_LENGTH);
+                
+                do
+                {
+                    printf("Enter your Password: ");
+                    fgets(new_account.password, sizeof(new_account.password), stdin);
+                    new_account.password[strcspn(new_account.password, "\n")] = '\0'; 
+                } while (strlen(new_account.password) == 0 || strlen(new_account.password) < MIN_PASSWORD_LENGTH || strlen(new_account.password) > MAX_PASSWORD_LENGTH);
+                
 
-                    do
-                    {
-                        printf("Enter your Username: ");
-                        fgets(new_account.username, sizeof(new_account.username), stdin);
-                        new_account.username[strcspn(new_account.username, "\n")] = '\0'; 
-                    } while (strlen(new_account.username) == 0);
-                    
-                    do
-                    {
-                        printf("Enter your Password: ");
-                        fgets(new_account.password, sizeof(new_account.password), stdin);
-                        new_account.password[strcspn(new_account.password, "\n")] = '\0'; 
-                    } while (strlen(new_account.password) == 0);
-                    
+                do
+                {                        
+                    printf("Enter your Phone Number: ");
+                    fgets(new_account.phone_number, sizeof(new_account.phone_number), stdin);
+                    new_account.phone_number[strcspn(new_account.phone_number, "\n")] = '\0'; 
+                } while (strlen(new_account.phone_number) == 0);
+                
+                do
+                {                        
+                    printf("Enter your Email: ");
+                    fgets(new_account.email, sizeof(new_account.email), stdin);
+                    new_account.email[strcspn(new_account.email, "\n")] = '\0'; 
+                } while (strlen(new_account.email) == 0);
+                
 
-                    do
-                    {                        
-                        printf("Enter your Phone Number: ");
-                        fgets(new_account.phone_number, sizeof(new_account.phone_number), stdin);
-                        new_account.phone_number[strcspn(new_account.phone_number, "\n")] = '\0'; 
-                    } while (strlen(new_account.phone_number) == 0);
-                    
-                    do
-                    {                        
-                        printf("Enter your Email: ");
-                        fgets(new_account.email, sizeof(new_account.email), stdin);
-                        new_account.email[strcspn(new_account.email, "\n")] = '\0'; 
-                    } while (strlen(new_account.email) == 0);
-                    
+                register_account(
+                                new_account.fName, 
+                                new_account.lName, 
+                                new_account.username, 
+                                new_account.phone_number, 
+                                new_account.email, 
+                                new_account.password);
+                choice = 2; // This will make sure to send the user to the login page where they will login to their account!
+            } while (choice == 1);
+            break;
+        case 2:
+        //Login to the Account with the user credentials
+            do
+            {
+                getchar();
+                printf("Enter your Username: ");
+                fgets(login_account.username, sizeof(login_account.username), stdin);
+                login_account.username[strcspn(login_account.username, "\n")] = '\0';
+            } while (strlen(login_account.username) == 0 || strlen(login_account.username) < MIN_USERNAME_LENGTH || strlen(login_account.username) > MAX_USERNAME_LENGTH);
 
-                    register_account(
-                                    new_account.fName, 
-                                    new_account.lName, 
-                                    new_account.username, 
-                                    new_account.phone_number, 
-                                    new_account.email, 
-                                    new_account.password);
-                    choice = 2;
-                } while (choice == 1);
+            do
+            {
+                printf("Enter your Password: ");
+                fgets(login_account.password, sizeof(login_account.password), stdin);
+                login_account.password[strcspn(login_account.password, "\n")] = '\0'; 
+            } while (strlen(login_account.password) == 0 || strlen(login_account.password) < MIN_PASSWORD_LENGTH || strlen(login_account.password) > MAX_PASSWORD_LENGTH);
+            
+            int authentication = login(login_account.username, login_account.password);
 
-            case 2:
-                // Login to Account with the user details
-                printf("2\n");
-                break;
-            case 3:
-                // Back to menu
-                printf("3\n");
-                break;
-            case 4:
-                //Exiting program
-                printf("4\n");
-                return -1;
-            default:
-                printf("Invalid choice! Plase try again.\n");
-                return -1;
+            if(authentication == 1){
+                client_portal_menu(login_account.username);
             }
+            break;
+        case 3:
+            //Exiting program
+            printf("4\n");
+            return -1;
+        default:
+            printf("Invalid choice! Plase try again.\n");
+            return -1;
         }
     }
 
@@ -148,14 +164,54 @@ int main(){
     return 0;
 }
 
-int user_choice(){
+
+
+int main_menu(){
         int choice = 0;
         printf("Welcome to the BANK MANAGEMENT SYSTEM\n");
-        printf("1. Create Account\n");
-        printf("2. Login to your Account\n");
-        printf("3. Back to Menu!\n");
-        printf("4. Exit\n");
+        printf("1) Create Account\n");
+        printf("2) Login to your Account\n");
+        printf("3) Exit\n");
         printf("Enter your choice: ");
         scanf("%d", &choice);
         return choice;
+}
+
+void client_portal_menu(const char* username) {
+    int choice;
+    do {
+        
+        system("clear");
+        double balance = getBalance(username);
+        printf("\nClient Portal\n");
+        printf("-----------------------------\n");
+        printf("Account: %s\n", username);
+        printf("Current Balance: $%.2f\n", balance);
+        printf("-----------------------------\n");
+        printf("1. Deposit Money\n");
+        printf("2. Transfer Money\n");
+        printf("3. Logout\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+        
+        getchar();
+
+        switch(choice) {
+            case 1:
+                deposit_money(username);
+                break;
+            case 2:
+                transfer_money(username);
+                break;
+            case 3:
+                printf("Logging out...\n");
+                sleep(1);
+                system("clear");
+                return;
+            default:
+                printf("Invalid choice. Try again.\n");
+                sleep(1);
+                system("clear");
+        }
+    } while(1);
 }
