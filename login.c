@@ -7,16 +7,12 @@
 #include <unistd.h>
 
 int login(const char *username, const char *password){
-    sqlite3 *db;
+
+    sqlite3 *db = setupDB();
     sqlite3_stmt *stmt;
-    int rc = sqlite3_open("db/accounts.db", &db);
-    if(rc != SQLITE_OK){
-        fprintf(stderr, "Error openning the database: %s", sqlite3_errmsg(db));
-        return -1;
-    } 
 
     const char *sql = "SELECT password FROM Accounts WHERE username = ?";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if(rc != SQLITE_OK){
         fprintf(stderr, "Failed to prepare statement: %s", sqlite3_errmsg(db));
         sqlite3_close(db);
@@ -36,6 +32,7 @@ int login(const char *username, const char *password){
             printf("Login successful!\n");
             sqlite3_finalize(stmt);
             sqlite3_close(db);
+            system("clear");
             return 1;
         } else {
             printf("Invalid password.\n");
@@ -49,18 +46,14 @@ int login(const char *username, const char *password){
     return 0;
 }
 
+
 double getBalance(const char *username){
-    sqlite3 *db;
+    sqlite3 *db = setupDB();
     sqlite3_stmt *stmt;
     double balance = -1;
-    int rc = sqlite3_open("db/accounts.db", &db);
-    if(rc != SQLITE_OK){
-        fprintf(stderr, "Error opening the database: %s", sqlite3_errmsg(db));
-        return -1;
-    }
 
     const char *sql = "SELECT balance FROM Accounts WHERE username = ?";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if(rc != SQLITE_OK){
         fprintf(stderr, "Failed to prepare statement: %s", sqlite3_errmsg(db));
         sqlite3_close(db);
@@ -79,33 +72,30 @@ double getBalance(const char *username){
     return balance;
 }
 
-double deposit_money(const char *username){
-
-    double current_balance = getBalance(username);
-    double deposit;
-    printf("Enter the amount to deposit: ");
-    scanf("%lf", &deposit);
-
-    double new_balance = current_balance + deposit;
-    
-    sqlite3 *db;
-    sqlite3_stmt *stmt;
-    int rc = sqlite3_open("db/accounts.db", &db);
-    if(rc != SQLITE_OK){
-        fprintf(stderr, "Error opening the database: %s", sqlite3_errmsg(db));
-        return -1;
+void deposit(char *prompt, double balance, const char *user){
+    double amount;
+    printf("%s", prompt);
+    if(scanf("%lf", &amount) != 1 || amount <= 0){
+        printf("Invalid amount!\n");
+        while(getchar() != '\n');
+        return;
     }
 
+    double updatedBalance = balance + amount;
+    
+    sqlite3 *db = setupDB();
+    sqlite3_stmt *stmt;
+
     const char *sql = "UPDATE Accounts SET balance = ? WHERE username = ?";
-    rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if(rc != SQLITE_OK){
         fprintf(stderr, "Failed to prepare statement: %s", sqlite3_errmsg(db));
         sqlite3_close(db);
-        return -1;
+        return;
     }
 
-    sqlite3_bind_double(stmt, 1, new_balance);
-    sqlite3_bind_text(stmt, 2, username, -1, SQLITE_STATIC);
+    sqlite3_bind_double(stmt, 1, updatedBalance);
+    sqlite3_bind_text(stmt, 2, user, -1, SQLITE_STATIC);
 
     rc = sqlite3_step(stmt);
     if(rc != SQLITE_DONE){
@@ -118,64 +108,92 @@ double deposit_money(const char *username){
     sqlite3_close(db);
 }
 
-double transfer_money(const char *username){
-    char reciever_user[33];
-    printf("Enter the reciever username: ");
-    fgets(reciever_user, sizeof(reciever_user), stdin);
-    reciever_user[strcspn(reciever_user, "\n")] = '\0';
+double getPositiveDouble(const char *prompt) {
+    double value;
+    int rc;
 
-    double current_balance = getBalance(username); // The sender's current balance
-    double reciever_balance = getBalance(reciever_user); // The receiver's current balance
-    double transfer;
-    printf("Enter the amount you want to transfer: ");
-    scanf("%lf", &transfer);
-    getchar(); // Clear newline
+    while (1) {
+        printf("%s", prompt);
+        rc = scanf("%lf", &value);
+        while(getchar() != '\n'); // flush input
 
-    double sender_new_balance = current_balance - transfer;
-    double reciever_new_balance = reciever_balance + transfer;
+        if (rc == 1 && value > 0) {
+            return value;
+        }
+        printf("Invalid input. Please enter a positive number.\n");
+    }
+}
 
-    sqlite3 *db;
+// Helper function check if user exists in the database and get their balance
+int getUserBalance(const char *username, double *balance) {
+    double b = getBalance(username);
+    if (b < 0) return 0; // user does not exist
+    *balance = b;
+    return 1;
+}
+
+// Helper function update balance in DB
+int updateBalance(sqlite3 *db, const char *username, double newBalance) {
     sqlite3_stmt *stmt;
-    int rc = sqlite3_open("db/accounts.db", &db);
-    if(rc != SQLITE_OK){
-        fprintf(stderr, "Error opening the database: %s", sqlite3_errmsg(db));
-        return -1;
+    const char *sql = "UPDATE Accounts SET balance = ? WHERE username = ?";
+    
+    if (sqlite3_prepare_v2(db, sql, -1, &stmt, NULL) != SQLITE_OK) {
+        fprintf(stderr, "Failed to prepare statement: %s\n", sqlite3_errmsg(db));
+        return 0;
     }
 
-    // Update sender's balance
-    const char *sql_sender = "UPDATE Accounts SET balance = ? WHERE username = ?";
-    rc = sqlite3_prepare_v2(db, sql_sender, -1, &stmt, NULL);
-    if(rc != SQLITE_OK){
-        fprintf(stderr, "Failed to prepare sender statement: %s", sqlite3_errmsg(db));
-        sqlite3_close(db);
-        return -1;
-    }
-    sqlite3_bind_double(stmt, 1, sender_new_balance);
+    sqlite3_bind_double(stmt, 1, newBalance);
     sqlite3_bind_text(stmt, 2, username, -1, SQLITE_STATIC);
-    rc = sqlite3_step(stmt);
-    if(rc != SQLITE_DONE){
-        fprintf(stderr, "Failed to update sender balance!\nError: %s", sqlite3_errmsg(db));
-        sqlite3_finalize(stmt);
-        sqlite3_close(db);
-        return -1;
-    }
+
+    int rc = sqlite3_step(stmt);
     sqlite3_finalize(stmt);
 
-    // Update receiver's balance
-    rc = sqlite3_prepare_v2(db, sql_sender, -1, &stmt, NULL);
-    if(rc != SQLITE_OK){
-        fprintf(stderr, "Failed to prepare receiver statement: %s", sqlite3_errmsg(db));
+    if (rc != SQLITE_DONE) {
+        fprintf(stderr, "Failed to update balance for %s: %s\n", username, sqlite3_errmsg(db));
+        return 0;
+    }
+
+    return 1;
+}
+
+int transfer_money(const char *sender) {
+    char receiver[33];
+    double sender_balance, receiver_balance, amount;
+
+    printf("Enter receiver username: ");
+    fgets(receiver, sizeof(receiver), stdin);
+    receiver[strcspn(receiver, "\n")] = '\0';
+
+    // Validate users
+    if (!getUserBalance(sender, &sender_balance) || !getUserBalance(receiver, &receiver_balance)) {
+        printf("Invalid user(s).\n");
+        return -1;
+    }
+
+    // Get transfer amount
+    amount = getPositiveDouble("Enter amount to transfer: ");
+    if (amount > sender_balance) {
+        printf("Insufficient funds.\n");
+        return -1;
+    }
+
+    // Open DB and begin transaction
+    sqlite3 *db = setupDB();
+    if (!db) return -1;
+
+    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
+
+    // Update balances
+    if (!updateBalance(db, sender, sender_balance - amount) ||
+        !updateBalance(db, receiver, receiver_balance + amount)) {
+        sqlite3_exec(db, "ROLLBACK;", NULL, NULL, NULL);
         sqlite3_close(db);
         return -1;
     }
-    sqlite3_bind_double(stmt, 1, reciever_new_balance);
-    sqlite3_bind_text(stmt, 2, reciever_user, -1, SQLITE_STATIC);
-    rc = sqlite3_step(stmt);
-    if(rc != SQLITE_DONE){
-        fprintf(stderr, "Failed to update receiver balance!\nError: %s", sqlite3_errmsg(db));
-    } else{
-        printf("Transfer successful!\n");
-    }
-    sqlite3_finalize(stmt);
+
+    sqlite3_exec(db, "COMMIT;", NULL, NULL, NULL);
     sqlite3_close(db);
+
+    printf("Transfer successful!\n");
+    return 0;
 }

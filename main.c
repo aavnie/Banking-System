@@ -18,16 +18,16 @@ typedef struct
     char username[64];
     char password[64];
 
-}Account_Login;
+}accountLogin;
 
 typedef struct{
-    char fName[32];
-    char lName[32];
+    char name[32];
+    char lastname[32];
     char username[33];
     char phone_number[15];
     char email[64];
     char password[65];
-}Account_Registration;
+}accountRegistration;
 
 int main(){
     /*
@@ -46,8 +46,8 @@ int main(){
     
                     */
     int choice;
-    Account_Registration new_account = {0}; // Initialize new_account to zero
-    Account_Login login_account = {0}; // Initialize login_account to zero
+    accountRegistration new_account = {0}; // Initialize new_account to zero
+    accountLogin login_account = {0}; // Initialize login_account to zero
 
     while(1){
 
@@ -71,21 +71,20 @@ int main(){
                 // Create Account and take user input for the user details
                 printf("Welcome to the registration page!\n\n");
 
-                Account_Registration new_account;
-                getchar();
+                getchar( );
                 do
                 {
                     printf("Enter your First Name: ");
-                    fgets(new_account.fName, sizeof(new_account.fName), stdin);
-                    new_account.fName[strcspn(new_account.fName, "\n")] = '\0'; // Removes the new line character, same for all the ones below
-                } while (strlen(new_account.fName) <= 2);
+                    fgets(new_account.name, sizeof(new_account.name), stdin);
+                    new_account.name[strcspn(new_account.name, "\n")] = '\0'; // Removes the new line character, same for all the ones below
+                } while (strlen(new_account.name) <= 2);
                 
                 
                 do{
                     printf("Enter your Last Name: ");                        
-                    fgets(new_account.lName, sizeof(new_account.lName), stdin);
-                    new_account.lName[strcspn(new_account.lName, "\n")] = '\0'; 
-                }while (strlen(new_account.lName) <= 2);
+                    fgets(new_account.lastname, sizeof(new_account.lastname), stdin);
+                    new_account.lastname[strcspn(new_account.lastname, "\n")] = '\0'; 
+                }while (strlen(new_account.lastname) <= 2);
 
                 do
                 {
@@ -118,8 +117,8 @@ int main(){
                 
 
                 register_account(
-                                new_account.fName, 
-                                new_account.lName, 
+                                new_account.name, 
+                                new_account.lastname, 
                                 new_account.username, 
                                 new_account.phone_number, 
                                 new_account.email, 
@@ -181,7 +180,6 @@ void client_portal_menu(const char* username) {
     int choice;
     do {
         
-        system("clear");
         double balance = getBalance(username);
         printf("\nClient Portal\n");
         printf("-----------------------------\n");
@@ -198,10 +196,14 @@ void client_portal_menu(const char* username) {
 
         switch(choice) {
             case 1:
-                deposit_money(username);
+                deposit("Deposit:$", balance, username);
+                sleep(1.5);
+                system("clear");
                 break;
             case 2:
                 transfer_money(username);
+                sleep(1.5);
+                system("clear");
                 break;
             case 3:
                 printf("Logging out...\n");
@@ -211,7 +213,6 @@ void client_portal_menu(const char* username) {
             default:
                 printf("Invalid choice. Try again.\n");
                 sleep(1);
-                system("clear");
         }
     } while(1);
 }
